@@ -1,7 +1,8 @@
 # {{ ansible_managed }}
 # Custom Apache httpd site config — managed by Ansible. Do not edit by hand.
-
-Listen {{ nginx_listen_port | default(80) }}
+#
+# Note: we do NOT declare `Listen` here — /etc/httpd/conf/httpd.conf already
+# does that and Apache rejects duplicate Listen on the same IP:port.
 
 <VirtualHost *:{{ nginx_listen_port | default(80) }}>
     ServerName _default_
