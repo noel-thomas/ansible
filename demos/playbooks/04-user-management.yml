@@ -1,0 +1,51 @@
+---
+# =============================================================================
+# Bonus demo — User & SSH key management with loops
+# =============================================================================
+# Demonstrates: loops, variables in vars/, conditional task skipping,
+# and the `user` + `authorized_key` modules — bread-and-butter sysadmin work.
+#
+# Requires the ansible.posix collection (for the authorized_key module):
+#   ansible-galaxy collection install -r requirements.yml
+#
+# Run with:
+#   ansible-playbook playbooks/04-user-management.yml --ask-become-pass
+#
+# Roll back / remove these users with the `state: absent` tag:
+#   ansible-playbook playbooks/04-user-management.yml -e team_state=absent
+# =============================================================================
+
+- name: "Bonus — Manage a team of users"
+  hosts: webservers
+  become: yes
+
+  vars:
+    team_state: present   # override with -e team_state=absent to remove
+    team:
+      - { username: alice, shell: /bin/bash, groups: [sudo] }
+      - { username: bob,   shell: /bin/bash, groups: [] }
+      - { username: carol, shell: /bin/zsh,  groups: [sudo] }
+
+  tasks:
+
+    - name: Ensure each team member account exists (or is removed)
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        shell: "{{ item.shell }}"
+        groups: "{{ item.groups | join(',') if item.groups else omit }}"
+        append: yes
+        state: "{{ team_state }}"
+        create_home: yes
+      loop: "{{ team }}"
+      loop_control:
+        label: "{{ item.username }}"
+
+    - name: Add the demo SSH key for each user (only when state=present)
+      ansible.posix.authorized_key:
+        user: "{{ item.username }}"
+        key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyDoNotUseInProduction demo@webinar"
+        state: present
+      loop: "{{ team }}"
+      loop_control:
+        label: "{{ item.username }}"
+      when: team_state == 'present'

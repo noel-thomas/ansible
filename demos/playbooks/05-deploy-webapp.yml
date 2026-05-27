@@ -1,0 +1,25 @@
+---
+# =============================================================================
+# Demo 3 — Deploy a small web app using a role
+# =============================================================================
+# Notice how short this playbook is. All the complexity lives inside the
+# `webserver` role under roles/webserver/. The playbook is just the entry
+# point that maps roles -> hosts.
+#
+# Run with:
+#   ansible-playbook playbooks/05-deploy-webapp.yml --ask-become-pass
+#
+# After it runs:
+#   curl http://localhost/
+# =============================================================================
+
+- name: "Demo 3 — Deploy {{ app_name }} via the webserver role"
+  hosts: webservers
+  become: yes
+
+  roles:
+    - role: webserver
+      vars:
+        # We can override any of the role's defaults right here.
+        site_heading: "Welcome to {{ app_name }}"
+        site_subheading: "Deployed by Ansible — {{ app_environment | upper }} environment"

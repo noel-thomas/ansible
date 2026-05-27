@@ -1,0 +1,17 @@
+---
+# Default variables for the `webserver` role.
+# Anything in defaults/ can be overridden from a playbook, inventory, or CLI.
+
+# Site content
+site_heading: "Hello from the webserver role"
+site_subheading: "If you can read this, Ansible deployed it."
+site_doc_root: /var/www/html
+
+# Nginx
+nginx_listen_port: 80
+nginx_worker_connections: 1024
+nginx_server_name: "_"
+
+# Service
+nginx_service_state: started
+nginx_service_enabled: yes

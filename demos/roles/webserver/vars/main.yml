@@ -1,0 +1,14 @@
+---
+# Variables owned by the `webserver` role.
+# These have higher precedence than defaults/ and are not meant to be
+# overridden by users of the role.
+
+nginx_packages_by_family:
+  Debian:
+    - nginx
+  RedHat:
+    - nginx
+
+nginx_site_config_path_by_family:
+  Debian: /etc/nginx/sites-available/default
+  RedHat: /etc/nginx/conf.d/default.conf

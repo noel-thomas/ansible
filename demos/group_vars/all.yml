@@ -1,0 +1,12 @@
+---
+# Variables that apply to every host in every group.
+# group_vars/<group>.yml is loaded automatically by Ansible.
+
+company_name: "Acme Corp"
+webinar_title: "Ansible for Beginners"
+site_admin_email: "admin@example.com"
+
+# Web app demo
+app_name: "hello-ansible"
+app_listen_port: 8080
+app_environment: "demo"

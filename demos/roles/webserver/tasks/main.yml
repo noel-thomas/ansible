@@ -1,0 +1,41 @@
+---
+# Main task list for the `webserver` role.
+#
+# Responsibility: install nginx, render a templated config and index page,
+# and make sure the service is running. Cross-distro (Debian + RedHat families).
+
+- name: Install nginx packages
+  ansible.builtin.package:
+    name: "{{ nginx_packages_by_family[ansible_facts['os_family']] }}"
+    state: present
+  tags: [install]
+
+- name: Ensure document root exists
+  ansible.builtin.file:
+    path: "{{ site_doc_root }}"
+    state: directory
+    mode: '0755'
+  tags: [config]
+
+- name: Render the nginx site config
+  ansible.builtin.template:
+    src: nginx-site.conf.j2
+    dest: "{{ nginx_site_config_path_by_family[ansible_facts['os_family']] }}"
+    mode: '0644'
+    backup: yes
+  notify: reload nginx
+  tags: [config]
+
+- name: Render the landing page
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: "{{ site_doc_root }}/index.html"
+    mode: '0644'
+  tags: [content]
+
+- name: Ensure nginx is running and enabled
+  ansible.builtin.service:
+    name: nginx
+    state: "{{ nginx_service_state }}"
+    enabled: "{{ nginx_service_enabled }}"
+  tags: [service]

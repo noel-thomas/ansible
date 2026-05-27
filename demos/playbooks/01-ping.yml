@@ -1,0 +1,39 @@
+---
+# =============================================================================
+# Demo 1 — Connectivity check + show what Ansible knows
+# =============================================================================
+# Run with:
+#   ansible-playbook playbooks/01-ping.yml
+#
+# Equivalent ad-hoc commands:
+#   ansible all -m ping
+#   ansible all -m setup
+# =============================================================================
+
+- name: "Demo 1 — Hello, Ansible"
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+
+    - name: Confirm we can reach every host
+      ansible.builtin.ping:
+
+    - name: Show a friendly greeting using a discovered fact
+      ansible.builtin.debug:
+        msg: >-
+          Hello from {{ inventory_hostname }} —
+          running {{ ansible_facts['distribution'] }}
+          {{ ansible_facts['distribution_version'] }}
+          on a {{ ansible_facts['architecture'] }} CPU
+          with {{ ansible_facts['processor_vcpus'] | default('?') }} vCPUs
+          and {{ (ansible_facts['memtotal_mb'] / 1024) | round(1) }} GB of RAM.
+
+    - name: Show the current date/time on the target
+      ansible.builtin.command: date
+      changed_when: false
+      register: target_date
+
+    - name: Print the date command output
+      ansible.builtin.debug:
+        var: target_date.stdout

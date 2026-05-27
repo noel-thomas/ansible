@@ -1,0 +1,87 @@
+---
+# =============================================================================
+# Demo 2 — Configuration management with nginx
+# =============================================================================
+# Install nginx, drop a templated config, restart only if the config changed.
+#
+# Run with:
+#   ansible-playbook playbooks/03-install-nginx.yml --ask-become-pass
+#
+# After it runs:
+#   curl http://localhost/health   # should print "ok"
+#
+# Run it a SECOND time to see idempotency in action — changed=0.
+# =============================================================================
+
+- name: "Demo 2 — Install and configure nginx"
+  hosts: webservers
+  become: yes
+
+  vars:
+    nginx_listen_port: 80
+
+  tasks:
+
+    # ---------------------------------------------------------------------
+    # 1. Install — works on Debian/Ubuntu *and* RHEL/Fedora/Rocky/CentOS
+    # ---------------------------------------------------------------------
+    - name: Install nginx (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install nginx (RHEL/Fedora/Rocky/CentOS)
+      ansible.builtin.dnf:
+        name: nginx
+        state: present
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    # ---------------------------------------------------------------------
+    # 2. Configure — drop a Jinja2-rendered config
+    # ---------------------------------------------------------------------
+    - name: Ensure web root exists
+      ansible.builtin.file:
+        path: /var/www/html
+        state: directory
+        mode: '0755'
+
+    - name: Deploy custom nginx site config
+      ansible.builtin.template:
+        src: ../templates/nginx-custom.conf.j2
+        dest: "{{ '/etc/nginx/conf.d/default.conf' if ansible_facts['os_family'] == 'RedHat' else '/etc/nginx/sites-available/default' }}"
+        mode: '0644'
+        backup: yes
+      notify: reload nginx
+
+    - name: Drop a minimal index.html
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        mode: '0644'
+        content: |
+          <!doctype html>
+          <html><head><title>{{ webinar_title }}</title></head>
+          <body style="font-family: sans-serif; padding: 2em;">
+            <h1>Hello from Ansible!</h1>
+            <p>Served by {{ inventory_hostname }} ({{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}).</p>
+          </body></html>
+
+    # ---------------------------------------------------------------------
+    # 3. Run — start the service
+    # ---------------------------------------------------------------------
+    - name: Make sure nginx is started and enabled at boot
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
+
+  # =====================================================================
+  # Handlers run at the end of the play, but ONLY if a task notified them.
+  # =====================================================================
+  handlers:
+
+    - name: reload nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded

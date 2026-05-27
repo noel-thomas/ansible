@@ -1,0 +1,47 @@
+---
+# =============================================================================
+# Bonus demo — Generate a system inventory report
+# =============================================================================
+# A slightly richer "hello world" you can use if you have extra time.
+# Demonstrates: facts, loops, conditionals, and writing files.
+# =============================================================================
+
+- name: "Bonus — Generate a system inventory report"
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+
+    - name: Show OS family and major version
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} is {{ ansible_facts['os_family'] }} {{ ansible_facts['distribution_major_version'] }}"
+
+    - name: List all mounted filesystems
+      ansible.builtin.debug:
+        msg: "Mount: {{ item.mount }} ({{ item.fstype }}) — {{ (item.size_total / 1024 / 1024 / 1024) | round(1) }} GB"
+      loop: "{{ ansible_facts['mounts'] }}"
+      loop_control:
+        label: "{{ item.mount }}"
+
+    - name: Warn loudly if any filesystem is over 80% full
+      ansible.builtin.debug:
+        msg: "WARNING: {{ item.mount }} is {{ (100 - (item.size_available / item.size_total * 100)) | round(1) }}% full"
+      loop: "{{ ansible_facts['mounts'] }}"
+      loop_control:
+        label: "{{ item.mount }}"
+      when: (item.size_available / item.size_total) < 0.20
+
+    - name: Write a local report file on the control node
+      ansible.builtin.copy:
+        dest: "/tmp/ansible-report-{{ inventory_hostname }}.txt"
+        content: |
+          System Inventory Report
+          =======================
+          Host:        {{ inventory_hostname }}
+          OS:          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+          Kernel:      {{ ansible_facts['kernel'] }}
+          Arch:        {{ ansible_facts['architecture'] }}
+          vCPUs:       {{ ansible_facts['processor_vcpus'] | default('?') }}
+          Memory (GB): {{ (ansible_facts['memtotal_mb'] / 1024) | round(1) }}
+          Generated:   {{ ansible_date_time.iso8601 }}
+      delegate_to: localhost

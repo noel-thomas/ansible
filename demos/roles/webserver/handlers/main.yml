@@ -1,0 +1,13 @@
+---
+# Handlers for the `webserver` role.
+# These only fire when a task `notify:`s them AND that task actually changed.
+
+- name: reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+
+- name: restart nginx
+  ansible.builtin.service:
+    name: nginx
+    state: restarted
