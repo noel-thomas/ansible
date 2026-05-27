@@ -1,8 +1,10 @@
 ---
 # =============================================================================
-# Demo 2 — Configuration management with nginx
+# Demo 2 — Configuration management with a web server
 # =============================================================================
-# Install nginx, drop a templated config, restart only if the config changed.
+# Install a web server, drop a templated config, restart only if the config
+# changed. We use nginx on Debian/Ubuntu and httpd (Apache) on RHEL family —
+# Ansible lets us paper over the difference with facts + variables.
 #
 # Run with:
 #   ansible-playbook playbooks/03-install-nginx.yml --ask-become-pass
@@ -13,28 +15,47 @@
 # Run it a SECOND time to see idempotency in action — changed=0.
 # =============================================================================
 
-- name: "Demo 2 — Install and configure nginx"
+- name: "Demo 2 — Install and configure a web server"
   hosts: webservers
   become: yes
 
   vars:
     nginx_listen_port: 80
 
+    web_package_by_family:
+      Debian: nginx
+      RedHat: httpd
+
+    web_service_by_family:
+      Debian: nginx
+      RedHat: httpd
+
+    web_config_path_by_family:
+      Debian: /etc/nginx/sites-available/default
+      RedHat: /etc/httpd/conf.d/default.conf
+
+    web_config_template_by_family:
+      Debian: ../templates/nginx-custom.conf.j2
+      RedHat: ../templates/httpd-custom.conf.j2
+
+    web_package: "{{ web_package_by_family[ansible_facts['os_family']] }}"
+    web_service: "{{ web_service_by_family[ansible_facts['os_family']] }}"
+
   tasks:
 
     # ---------------------------------------------------------------------
     # 1. Install — works on Debian/Ubuntu *and* RHEL/Fedora/Rocky/CentOS
     # ---------------------------------------------------------------------
-    - name: Install nginx (Debian/Ubuntu)
+    - name: Install web server (Debian/Ubuntu)
       ansible.builtin.apt:
-        name: nginx
+        name: "{{ web_package }}"
         state: present
         update_cache: yes
       when: ansible_facts['os_family'] == 'Debian'
 
-    - name: Install nginx (RHEL/Fedora/Rocky/CentOS)
+    - name: Install web server (RHEL/Fedora/Rocky/CentOS)
       ansible.builtin.dnf:
-        name: nginx
+        name: "{{ web_package }}"
         state: present
       when: ansible_facts['os_family'] == 'RedHat'
 
@@ -47,13 +68,22 @@
         state: directory
         mode: '0755'
 
-    - name: Deploy custom nginx site config
+    - name: Deploy custom web server site config
       ansible.builtin.template:
-        src: ../templates/nginx-custom.conf.j2
-        dest: "{{ '/etc/nginx/conf.d/default.conf' if ansible_facts['os_family'] == 'RedHat' else '/etc/nginx/sites-available/default' }}"
+        src: "{{ web_config_template_by_family[ansible_facts['os_family']] }}"
+        dest: "{{ web_config_path_by_family[ansible_facts['os_family']] }}"
         mode: '0644'
         backup: yes
-      notify: reload nginx
+      notify: reload web server
+
+    # On Apache we serve /health as a static file (Apache can't return inline
+    # response bodies the way nginx can). On nginx this file is shadowed by the
+    # `location = /health` block, so it's harmless to drop on both.
+    - name: Drop a /health endpoint file
+      ansible.builtin.copy:
+        dest: /var/www/html/health
+        mode: '0644'
+        content: "ok\n"
 
     - name: Drop a minimal index.html
       ansible.builtin.copy:
@@ -70,9 +100,9 @@
     # ---------------------------------------------------------------------
     # 3. Run — start the service
     # ---------------------------------------------------------------------
-    - name: Make sure nginx is started and enabled at boot
+    - name: Make sure the web server is started and enabled at boot
       ansible.builtin.service:
-        name: nginx
+        name: "{{ web_service }}"
         state: started
         enabled: yes
 
@@ -81,7 +111,7 @@
   # =====================================================================
   handlers:
 
-    - name: reload nginx
+    - name: reload web server
       ansible.builtin.service:
-        name: nginx
+        name: "{{ web_service }}"
         state: reloaded

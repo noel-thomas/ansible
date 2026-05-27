@@ -1,0 +1,26 @@
+# {{ ansible_managed }}
+# Custom Apache httpd site config — managed by Ansible. Do not edit by hand.
+
+Listen {{ nginx_listen_port | default(80) }}
+
+<VirtualHost *:{{ nginx_listen_port | default(80) }}>
+    ServerName _default_
+    DocumentRoot /var/www/html
+
+    <Directory "/var/www/html">
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
+        DirectoryIndex index.html
+    </Directory>
+
+    # /health is served as a static file dropped by Ansible at
+    # /var/www/html/health (no .html — curl http://localhost/health prints "ok").
+    <Files "health">
+        ForceType text/plain
+    </Files>
+
+    # Hint to the browser that this came from Ansible
+    Header always set X-Managed-By "Ansible"
+    Header always set X-Webinar "{{ webinar_title }}"
+</VirtualHost>

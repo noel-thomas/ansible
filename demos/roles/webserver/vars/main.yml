@@ -2,13 +2,29 @@
 # Variables owned by the `webserver` role.
 # These have higher precedence than defaults/ and are not meant to be
 # overridden by users of the role.
+#
+# We use nginx on Debian/Ubuntu and httpd (Apache) on RHEL family.
 
-nginx_packages_by_family:
+web_packages_by_family:
   Debian:
     - nginx
   RedHat:
-    - nginx
+    - httpd
 
-nginx_site_config_path_by_family:
+web_service_by_family:
+  Debian: nginx
+  RedHat: httpd
+
+web_site_config_path_by_family:
   Debian: /etc/nginx/sites-available/default
-  RedHat: /etc/nginx/conf.d/default.conf
+  RedHat: /etc/httpd/conf.d/default.conf
+
+web_site_config_template_by_family:
+  Debian: nginx-site.conf.j2
+  RedHat: httpd-site.conf.j2
+
+# Convenience accessors derived from the detected OS family.
+web_packages: "{{ web_packages_by_family[ansible_facts['os_family']] }}"
+web_service: "{{ web_service_by_family[ansible_facts['os_family']] }}"
+web_site_config_path: "{{ web_site_config_path_by_family[ansible_facts['os_family']] }}"
+web_site_config_template: "{{ web_site_config_template_by_family[ansible_facts['os_family']] }}"

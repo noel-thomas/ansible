@@ -1,12 +1,13 @@
 ---
 # Main task list for the `webserver` role.
 #
-# Responsibility: install nginx, render a templated config and index page,
-# and make sure the service is running. Cross-distro (Debian + RedHat families).
+# Responsibility: install a web server, render a templated config and index
+# page, and make sure the service is running. Cross-distro: nginx on Debian,
+# httpd (Apache) on RHEL family.
 
-- name: Install nginx packages
+- name: Install web server packages
   ansible.builtin.package:
-    name: "{{ nginx_packages_by_family[ansible_facts['os_family']] }}"
+    name: "{{ web_packages }}"
     state: present
   tags: [install]
 
@@ -17,13 +18,13 @@
     mode: '0755'
   tags: [config]
 
-- name: Render the nginx site config
+- name: Render the web server site config
   ansible.builtin.template:
-    src: nginx-site.conf.j2
-    dest: "{{ nginx_site_config_path_by_family[ansible_facts['os_family']] }}"
+    src: "{{ web_site_config_template }}"
+    dest: "{{ web_site_config_path }}"
     mode: '0644'
     backup: yes
-  notify: reload nginx
+  notify: reload web server
   tags: [config]
 
 - name: Render the landing page
@@ -33,9 +34,19 @@
     mode: '0644'
   tags: [content]
 
-- name: Ensure nginx is running and enabled
+# Apache can't return an inline body for /health, so we drop a static file.
+# On nginx the `location = /health` block shadows the file, so this is safe
+# to drop on both distros.
+- name: Drop a /health endpoint file
+  ansible.builtin.copy:
+    dest: "{{ site_doc_root }}/health"
+    mode: '0644'
+    content: "ok\n"
+  tags: [content]
+
+- name: Ensure the web server is running and enabled
   ansible.builtin.service:
-    name: nginx
+    name: "{{ web_service }}"
     state: "{{ nginx_service_state }}"
     enabled: "{{ nginx_service_enabled }}"
   tags: [service]
